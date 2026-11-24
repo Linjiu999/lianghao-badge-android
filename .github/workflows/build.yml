@@ -1,0 +1,78 @@
+name: Build Android APK
+
+# 采用 GitHub 现成 KivyMD 构建模板 (Novfensec/SAMPLE-KIVYMD-APP) 的 workflow
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache buildozer global
+        uses: actions/cache@v4
+        with:
+          path: ~/.buildozer
+          key: ${{ runner.os }}-buildozer-global
+          restore-keys: ${{ runner.os }}-buildozer-global
+
+      - name: Cache buildozer app
+        uses: actions/cache@v4
+        with:
+          path: .buildozer
+          key: ${{ runner.os }}-buildozer-app
+          restore-keys: ${{ runner.os }}-buildozer-app
+
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install -y \
+            build-essential git ffmpeg \
+            libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev \
+            libportmidi-dev libswscale-dev libavformat-dev libavcodec-dev \
+            libunwind-dev zlib1g-dev autoconf-archive \
+            libsqlite3-dev sqlite3 bzip2 libbz2-dev openssl \
+            libgdbm-dev libgdbm-compat-dev liblzma-dev libreadline-dev \
+            uuid-dev libgstreamer1.0 gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good zip unzip autoconf libtool automake \
+            libltdl-dev m4 pkg-config libncurses5-dev libncursesw5-dev \
+            libtinfo6 cmake libffi-dev libssl-dev autopoint gettext
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pip deps
+        run: |
+          pip install --upgrade pip
+          pip install buildozer cython==3.0.11
+
+      - name: Build APK
+        run: yes | buildozer -v android debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lianghao-apk
+          path: bin/*.apk
+          if-no-files-found: error
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: 靓号展示条生成器 v1.0.${{ github.run_number }}
+          files: bin/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
